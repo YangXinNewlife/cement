@@ -1,6 +1,6 @@
 """Cement core extensions module."""
 
-from cement2.core import backend, exc, interface, handler
+from ..core import backend, exc, interface, handler
 
 Log = backend.minimal_logger(__name__)
     
@@ -10,7 +10,7 @@ def extension_validator(klass, obj):
     
     """
     members = [
-        'setup',
+        '_setup',
         'load_extension',
         'load_extensions',
         'loaded_extensions',
@@ -48,21 +48,17 @@ class IExtension(interface.Interface):
     Meta = interface.Attribute('Handler Meta-data class')
     loaded_extensions = interface.Attribute('List of loaded extensions')
     
-    def setup(defaults):
+    def _setup(app_obj):
         """
-        The setup function is called during application initialization and
+        The _setup function is called during application initialization and
         must 'setup' the handler object making it ready for the framework
         or the application to make further calls to it.
         
-        Because the extension handler is called before the application 
-        configuration is setup, the application defaults are passed rather
-        than a config object.
-        
         Required Arguments:
         
-            defaults
-                The applications default config dictionary.
-                
+            app_obj
+                The application object. 
+                                
         Returns: n/a
         
         """
@@ -91,34 +87,29 @@ class IExtension(interface.Interface):
         
         """
 
-class CementExtensionHandler(object):
+class CementExtensionHandler(handler.CementBaseHandler):
     loaded_extensions = []
     
     class Meta:
         interface = IExtension
         label = 'cement'
         
-    def __init__(self):
+    def __init__(self, **kw):
         """
         This is an implementation of the IExtentionHandler interface.  It handles
         loading framework extensions.
     
         """
-        self.defaults = {}
-        self.loaded_extensions = []
+        super(CementExtensionHandler, self).__init__(**kw)
+        self.app = None
+        self._loaded_extensions = []
         
-    def setup(self, defaults):
-        """
-        Given a defaults dictionary, setup the extension handler in preparation
-        for further calls from the framework.
-        
-        Required Arguments:
-        
-            defaults
-                The application defaults dictionary (not a config object).
-                
-        """
-        self.defaults = defaults
+    def _setup(self, app_obj):
+        self.app = app_obj
+    
+    @property
+    def loaded_extensions(self):
+        return self._loaded_extensions
         
     def load_extension(self, ext_module):
         """

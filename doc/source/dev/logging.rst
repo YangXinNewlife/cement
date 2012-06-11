@@ -19,60 +19,6 @@ The following log handlers are included and maintained with Cement2:
 Please reference the :ref:`ILog <cement2.core.config>` interface 
 documentation for writing your own log handler.
 
-Overriding Default Config Settings
-----------------------------------
-
-All handlers have an optional 'defaults' dictionary that is merged into the
-application configuration.  For example, the 'logging' handler's defaults are
-loaded into 'config -> log' where 'log' is the type of handler that 'logging'
-provides.  You can override these settings by doing the following:
-
-.. code-block:: python
-
-    from cement2.core import foundation, backend
-
-    defaults = backend.defaults('myapp')
-    defaults['log'] = dict(
-        file='/path/to/my.log',
-        to_console=False,
-        )
-
-    app = foundation.lay_cement('myapp', defaults=defaults)
-    app.setup()
-
-
-Additionally, a '[log]' block in any configuration file will also override
-the log handler defaults.  For example:
-
-*my.config*
-
-.. code-block:: text
-
-    [log]
-    file = /path/to/my.log
-    to_console = False
-    
-
-By adding a quick change to our defaults, we can easily parse a config file
-which overrides our defaults.
-
-.. code-block:: python
-    
-    from cement2.core import foundation, backend
-
-    defaults = backend.defaults()
-    defaults['base']['config_files'] = ['./my.config']
-    defaults['log'] = dict(
-        file='/path/to/my.log',
-        to_console=False,
-        )
-
-    app = foundation.lay_cement('myapp', defaults=defaults)
-    app.setup()
-    
-
-For a full list of available defaults see the :doc:`Logging Extension </api/extensions/logging>` documentation.
-
 Logging Messages
 ----------------
 
@@ -81,7 +27,7 @@ The following shows logging to each of the defined log levels.
 .. code-block:: python
 
     from cement2.core import foundation
-    app = foundation.lay_cement('myapp')
+    app = foundation.CementApp('myapp')
     
     # First setup the application
     app.setup()
@@ -117,21 +63,22 @@ and fatal... but you will not receive INFO, or DEBUG level messages.
 Changing Log Level
 ------------------
 
-The log level defaults to INFO, based on the 'defaults' of the log handler.
-You can override this in the same way we did above:
+The log level defaults to INFO, based on the 'config_defaults' of the log 
+handler.  You can override this via config_defaults:
 
 .. code-block:: python
 
     from cement2.core import foundation, backend
 
-    defaults = backend.defaults()
-    defaults['log'] = dict(
-        level='WARN',
-        )
-
-    app = foundation.lay_cement('myapp', defaults=defaults)
+    defaults = backend.defaults('myapp', 'log')
+    defaults['log']['level'] = 'WARN'
+    
+    app = foundation.CementApp('myapp', config_defaults=defaults)
     app.setup()
     
+This will also be overridden by the 'level' setting under a '[log]' section
+in any of the applications configuration files that are parsed.
+
 You should also note that Cement includes a '--debug' command line option by
 default.  This triggers the log level to 'DEBUG' and is helpful for quickly
 debugging issues:
@@ -200,7 +147,7 @@ The default log handler configuration enables logging to console.  For example:
 .. code-block:: python
 
     from cement2.core import foundation
-    app = foundation.lay_cement('myapp')
+    app = foundation.CementApp('myapp')
     app.setup()
     app.run()
     app.log.info('This is my info message')
@@ -227,11 +174,10 @@ defaults, or via a configuration file.
 
     from cement2.core import foundation, backend
 
-    defaults = backend.defaults()
-    defaults['log'] = dict(
-        file='my.log',
-        )
-    app = foundation.lay_cement('myapp', defaults=defaults)
+    defaults = backend.defaults('myapp', 'log')
+    defaults['log']['file'] = 'my.log'
+
+    app = foundation.CementApp('myapp', defaults=defaults)
     app.setup()
     app.run()
     app.log.info('This is my info message')
@@ -253,103 +199,3 @@ thing in particular to pay attention to is that the third column ('myapp')
 will always be the module where the log was called.  This is very helpful 
 for debugging to know where execution is in your application at the point of
 that log.  
-
-Customizing a Log Handler
--------------------------
-
-Customizing the log handler all depends on what log handler you are using,
-however in general you would need to do something like the following:
-
-.. code-block:: python
-
-    from cement2.core import foundation
-    
-    # First create the application
-    app = foundation.lay_cement('myapp')
-
-    # Before we setup the application, override the log handler
-    import logging
-    from cement2.ext.ext_logging import LoggingLogHandler
-
-    format = "%(asctime)s (%(levelname)s) %(name)s : %(message)s"
-    formatter = logging.Formatter(format)
-    app.log = LoggingLogHandler(console_formatter=formatter)
-    
-    # Then setup the application
-    app.setup()
-
-    # Then run the application
-    app.run()
-
-    # Call the log object like normal
-    app.log.info('This is my info message')
-
-    # close the application
-    app.close()
-
-As you can see above, we overrode the default console formatter to be a bit
-more verbose.  Which now looks like:
-
-.. code-block:: text
-
-    $ python test.py
-    2011-08-29 16:14:26,365 (INFO) myapp : This is my info message
-    
-
-In addition to customizing an existing handler, you can also use your own
-handler class:
-
-.. code-block:: python
-
-    from cement2.core import foundation, backend, log, handler
-
-    # Set the log_handler via our default config
-    defaults = backend.defaults()
-    defaults['base']['log_handler'] = 'mylog'
-
-    # First create the application
-    app = foundation.lay_cement('myapp', defaults=defaults)
-
-    # Before we setup the application, register the log handler 
-    from cement2.ext.ext_logging import LoggingLogHandler
-
-    class MyLogHandler(LoggingLogHandler):
-        class Meta:
-            interface = log.ILog
-            label = 'mylog'
-        
-            # These are the default config values, overridden by any '[log]' 
-            # section in parsed config files.
-            defaults = dict(
-                file='./my.log',
-                level='INFO',
-                to_console=True,
-                rotate=False,
-                max_bytes=512000,
-                max_files=4,
-                clear_loggers=True,
-                )
-
-        def some_custom_function(self):
-            pass
-
-    handler.register(MyLogHandler)
-
-    # Then setup the application... which will use our 'mylog' handler
-    app.setup()
-
-    # Then run the application
-    app.run()
-
-    # Call the log object like normal
-    app.log.info('Using %s log handler' % app.log.Meta.label)
-
-    # close the application
-    app.close()
-    
-And we get:
-
-.. code-block:: text
-
-    $ python test.py 
-    INFO: Using mylog log handler

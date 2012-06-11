@@ -12,7 +12,7 @@
 # serve to show the default.
 
 VERSION = '1.9'
-RELEASE = '1.9.3'
+RELEASE = '1.9.9'
 
 import sys, os
 sys.path.insert(0, os.path.abspath('../../src/cement2/'))
@@ -54,7 +54,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'Cement'
-copyright = u'2011, BJ Dierkes'
+copyright = u'2009-2012, BJ Dierkes'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

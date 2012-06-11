@@ -9,9 +9,8 @@ import os
 import sys
 import pwd
 import grp
-import signal
-from cement2.core import handler, hook, backend
-from cement2.lib.ext_daemon import Environment
+from ..core import handler, hook, backend
+from ..lib.ext_daemon import Environment
 
 Log = backend.minimal_logger(__name__)
 CEMENT_DAEMON_ENV = None
@@ -75,7 +74,7 @@ def cement_post_setup_hook(app):
     defaults['daemon']['dir'] = '/'
     defaults['daemon']['umask'] = 0
     app.config.merge(defaults, override=False)
-    app.daemonize = daemonize
+    app.extend('daemonize', daemonize)
         
 @hook.register()
 def cement_on_close_hook(app):

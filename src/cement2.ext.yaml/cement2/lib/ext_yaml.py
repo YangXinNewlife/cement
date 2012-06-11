@@ -2,11 +2,11 @@
 
 import sys
 import yaml
-from cement2.core import output, backend
+from ..core import output, backend
 
 Log = backend.minimal_logger(__name__)
 
-class YamlOutputHandler(object):
+class YamlOutputHandler(output.CementOutputHandler):
     """
     This class implements the :ref:`IOutput <cement2.core.output>` 
     interface.  It provides YAML output from a data dictionary and uses 
@@ -22,27 +22,12 @@ class YamlOutputHandler(object):
         interface = output.IOutput
         label = 'yaml'
         
-    def __init__(self):
+    def __init__(self, *args, **kw):
+        super(YamlOutputHandler, self).__init__(*args, **kw)
         self.config = None
         
-    def setup(self, config_obj):
-        """
-        Sets up the class for use by the framework.  Little is done here in
-        this implementation.
-        
-        Required Arguments:
-        
-            config_obj
-                The application configuration object.  This is a config object 
-                that implements the :ref:`IConfig <cement2.core.config>` 
-                interface and not a config dictionary, though some config 
-                handler implementations may also function like a dict 
-                (i.e. configobj).
-                
-        Returns: n/a
-        
-        """
-        self.config = config_obj
+    def _setup(self, app_obj):
+        self.app = app_obj
         
     def render(self, data_dict, template=None):
         """

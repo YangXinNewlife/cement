@@ -4,11 +4,12 @@ import os
 import sys
 import glob
 import imp
-from cement2.core import backend, handler, plugin, util, exc
+from ..core import backend, handler, plugin, util, exc
 
 Log = backend.minimal_logger(__name__)
 
-class CementPluginHandler(object):
+### FIX ME: This is a redundant name... ?
+class CementPluginHandler(plugin.CementPluginHandler):
     """
     This class is an internal implementation of the 
     :ref:`IPlugin <cement2.core.plugin>` interface. It does not take any 
@@ -16,82 +17,65 @@ class CementPluginHandler(object):
     
     """
     
-    # Listed here to satisfy the validator
-    loaded_plugins = None
-    enabled_plugins = None
-    disabled_plugins = None
-    
     class Meta:
         interface = plugin.IPlugin
         label = 'cement'
-    
+            
     def __init__(self):
-       self.loaded_plugins = []
-       self.enabled_plugins = []
-       self.disabled_plugins = []
+        super(CementPluginHandler, self).__init__()
+        self._loaded_plugins = []
+        self._enabled_plugins = []
+        self._disabled_plugins = []
      
-    def setup(self, config_obj):
-        """
-        Sets up the class for use by the framework, including parsing the
-        application config, and plugin config files for enabled plugins
-        signified by a 'enable_plugin' option under a config [section] and
-        determining that plugins name by the [section] name.  Plugins whose
-        config has enable_plugin=True are appended to the self.enabled_plugins
-        list.  If the plugin is disabled, the plugin name is appended to the
-        self.disabled_plugins list.
-        
-        Required Arguments:
-        
-            config_obj
-                The application configuration object.  This is a config object 
-                that implements the :ref:`IConfig <cement2.core.config>` 
-                interface and not a config dictionary, though some config 
-                handler implementations may also function like a dict 
-                (i.e. configobj).
-                
-        Returns: n/a
-        
-        """
-        
-        self.config = config_obj
-        self.plugin_config_dir = self.config.get('base', 'plugin_config_dir')
-        config_handler = handler.get('config', self.config.get
-                                    ('base', 'config_handler'))
+    def _setup(self, app_obj):
+        super(CementPluginHandler, self)._setup(app_obj)
+        self.config_dir = util.abspath(self.app._meta.plugin_config_dir)
+        self.bootstrap = self.app._meta.plugin_bootstrap
+        self.load_dir = util.abspath(self.app._meta.plugin_dir)
+
+        # grab a generic config handler object
+        config_handler = handler.get('config', self.app.config._meta.label)
 
         # parse all app configs for plugins
-        for section in self.config.get_sections():
-            if not self.config.has_key(section, 'enable_plugin'):
+        for section in self.app.config.get_sections():
+            if not self.app.config.has_key(section, 'enable_plugin'):
                 continue
-            if util.is_true(self.config.get(section, 'enable_plugin')):
-                self.enabled_plugins.append(section)
+            if util.is_true(self.app.config.get(section, 'enable_plugin')):
+                self._enabled_plugins.append(section)
             else:
-                self.disabled_plugins.append(section)
+                self._disabled_plugins.append(section)
 
         # parse plugin config dir for enabled plugins, or return 
-        if self.plugin_config_dir:
-            if not os.path.exists(self.plugin_config_dir):
+        if self.config_dir:
+            if not os.path.exists(self.config_dir):
                 Log.debug('plugin config dir %s does not exist.' % 
-                          self.plugin_config_dir)
+                          self.config_dir)
                 return
         
-        for config in glob.glob("%s/*.conf" % self.plugin_config_dir):
+        for config in glob.glob("%s/*.conf" % self.config_dir):
+            config = os.path.abspath(os.path.expanduser(config))
             Log.debug("loading plugin config from '%s'." % config)
             pconfig = config_handler()
+            pconfig._setup(self.app)
             pconfig.parse_file(config)
-            plugin = pconfig.sections()[0]
-            
+
+            if not pconfig.get_sections():
+                Log.debug("config file '%s' has no sections." % config)
+                continue
+                
+            plugin = pconfig.get_sections()[0]
             if not pconfig.has_key(plugin, 'enable_plugin'):
                 continue
 
             if util.is_true(pconfig.get(plugin, 'enable_plugin')):
-                self.enabled_plugins.append(plugin)
-                self.config.add_section(plugin)
+                self._enabled_plugins.append(plugin)
+                self.app.config.add_section(plugin)
                 
                 # set the app config per the already parsed plugin config
                 for key in pconfig.keys(plugin):
-                    self.config.set(plugin, key, pconfig.get(plugin, key))
+                    self.app.config.set(plugin, key, pconfig.get(plugin, key))
             else:
-                self.disabled_plugins.append(section)
+                self._disabled_plugins.append(section)
         
     def _load_plugin_from_dir(self, plugin_name, plugin_dir):
         """
@@ -121,9 +105,9 @@ class CementPluginHandler(object):
         imp.load_module(plugin_name, f, path, desc)
         return True
             
-    def _load_plugin_from_module(self, plugin_name, base_package):
+    def _load_plugin_from_bootstrap(self, plugin_name, base_package):
         """
-        Load a plugin from a python module.  Returns True if no ImportError
+        Load a plugin from a python package.  Returns True if no ImportError
         is encountered.
         
         Required Arguments:
@@ -139,6 +123,10 @@ class CementPluginHandler(object):
         Returns: Bool
         
         """
+        if base_package is None:
+            Log.debug("plugin bootstrap module is set to None, unusable.")
+            return False
+            
         full_module = '%s.%s' % (base_package, plugin_name)
         Log.debug("attempting to load '%s' from '%s'" % (plugin_name, 
                                                          base_package))
@@ -151,10 +139,11 @@ class CementPluginHandler(object):
         """
         Load a plugin whose name is 'plugin_name'.  First attempt to load
         from a plugin directory (plugin_dir), secondly attempt to load from a 
-        bootstrap module (plugin_bootstrap_module) determined by self.config.
+        bootstrap module (plugin_bootstrap) determined by 
+        self.app._meta.plugin_bootstrap.
         
         Upon successful loading of a plugin, the plugin name is appended to
-        the self.loaded_plugins list.
+        the self._loaded_plugins list.
         
         Required Arguments:
         
@@ -163,26 +152,18 @@ class CementPluginHandler(object):
         
         """
         Log.debug("loading application plugin '%s'" % plugin_name)
-        plugin_dir = self.config.get('base', 'plugin_dir')
-        plugin_module = self.config.get('base', 'plugin_bootstrap_module')
-        
+
         # first attempt to load from plugin_dir, then from a bootstrap module
         
-        if self._load_plugin_from_dir(plugin_name, plugin_dir):
-            self.loaded_plugins.append(plugin_name)
+        if self._load_plugin_from_dir(plugin_name, self.load_dir):
+            self._loaded_plugins.append(plugin_name)
             return True
-        elif self._load_plugin_from_module(plugin_name, plugin_module):
-            self.loaded_plugins.append(plugin_name)
+        elif self._load_plugin_from_bootstrap(plugin_name, self.bootstrap):
+            self._loaded_plugins.append(plugin_name)
             return True
-        
-        # This doesn't seem likely to be triggerable because the second load
-        # from module will raise an ImportError
-        #else:
-        #    import traceback
-        #    traceback.print_exc(file=sys.stdout)
-        #    raise exc.CementConfigError(
-        #        "Unable to import plugin '%s'." % plugin_name
-        #        )
+        else:
+            raise exc.CementRuntimeError("Unable to load plugin '%s'." % 
+                                         plugin_name)
     
     def load_plugins(self, plugin_list):
         """
@@ -197,3 +178,15 @@ class CementPluginHandler(object):
         """
         for plugin_name in plugin_list:
             self.load_plugin(plugin_name)
+
+    @property
+    def loaded_plugins(self):
+        return self._loaded_plugins
+    
+    @property
+    def enabled_plugins(self):
+        return self._enabled_plugins
+
+    @property
+    def disabled_plugins(self):
+        return self._disabled_plugins

@@ -1,24 +1,19 @@
 """Logging Framework Extension Library."""
 
+import os
 import logging
-from cement2.core import exc, util, log
-
-class LoggingLogHandler(object):  
+from ..core import exc, util, log
+        
+class LoggingLogHandler(log.CementLogHandler):  
     """
     This class is an implementation of the :ref:`ILog <cement2.core.log>` 
     interface, and sets up the logging facility using the standard Python
     `logging <http://docs.python.org/library/logging.html>`_ module. 
     
-    Optional Arguments:
+    Optional Arguments / Meta:
         
-        config
-            The application configuration object.
-            
         namespace
             The logging namespace.  Default: application name.
-            
-        backend
-            The logging backend.  Default: logging.getLogger().
         
         file
             The log file path. Default: None.
@@ -59,9 +54,7 @@ class LoggingLogHandler(object):
     
     The following configuration options are recognized in this class:
     
-        base.app_name
-        
-        base.debug
+        <app_label>.debug
         
         log.file
         
@@ -72,14 +65,15 @@ class LoggingLogHandler(object):
         log.max_bytes
         
         log.max_files
-        
-        log.clear_loggers
     
     
     A sample config section (in any config file) might look like:
     
     .. code-block::text
     
+        [<app_label>]
+        debug = True
+        
         [log]
         file = /path/to/config/file
         level = info
@@ -92,111 +86,60 @@ class LoggingLogHandler(object):
     class Meta:
         interface = log.ILog
         label = 'logging'
-        
+        namespace = None
+        file_format = "%(asctime)s (%(levelname)s) %(name)s : %(message)s"
+        console_format = "%(levelname)s: %(message)s"
+        debug_format = "%(asctime)s (%(levelname)s) %(name)s : %(message)s"
+        clear_loggers = True
+
         # These are the default config values, overridden by any '[log]' 
         # section in parsed config files.
-        defaults = dict(
+        config_section = 'log'
+        config_defaults = dict(
             file=None,
             level='INFO',
             to_console=True,
             rotate=False,
             max_bytes=512000,
             max_files=4,
-            clear_loggers=True,
             )
     
+            
     levels = ['INFO', 'WARN', 'ERROR', 'DEBUG', 'FATAL']
 
-    def __init__(self, **kw):
-        self.config = kw.get('config', None)
-        self.namespace = kw.get('namespace', None)
-        self.backend = kw.get('backend', None)
-        self.file = kw.get('file', None)
-        self.to_console = kw.get('to_console', None)
-        self.rotate = kw.get('rotate', None)
-        self.max_bytes = kw.get('max_bytes', None)
-        self.max_files = kw.get('max_files', None)
-        self.file_formatter = kw.get('file_formatter', None)
-        self.console_formatter = kw.get('console_formatter', None)
-        self.debug_formatter = kw.get('debug_formatter', None)
-        self._clear_loggers = kw.get('clear_loggers', None)
-        self._level = kw.get('level', None)
+    def __init__(self, *args, **kw):
+        super(LoggingLogHandler, self).__init__(*args, **kw)
+        self.app = None
         
-    def setup(self, config_obj):
-        """
-        Sets up the class for use by the framework.  It first configures 
-        itself by any parameters passed on initialization, then defaults to
-        configuration settings.  Based on how the class is initialized, the
-        logging facility is then setup and ready to be accessed by the 
-        application.
+    def _setup(self, app_obj):
+        super(LoggingLogHandler, self)._setup(app_obj)
+        self._meta._merge(self.app.config.get_section_dict('log'))
         
-        Required Arguments:
-        
-            config_obj
-                The application configuration object.  This is a config object 
-                that implements the :ref:`IConfig <cement2.core.config>` 
-                interface and not a config dictionary, though some config 
-                handler implementations may also function like a dict 
-                (i.e. configobj).
-                
-        Returns: n/a
-        
-        """
-        
-        self.config = config_obj
-        
-        # first handle anything passed to __init__, fall back on config.
-        if self.namespace is None:
-            self.namespace = self.config.get('base', 'app_name')
-        if self.backend is None:
-            self.backend = logging.getLogger(self.namespace)
-        if self.file is None:
-            self.file = self.config.get('log', 'file')
-        if self.to_console is None:
-            self.to_console = self.config.get('log', 'to_console')
-        if self.rotate is None:
-            self.rotate = self.config.get('log', 'rotate')
-        if self.max_bytes is None:
-            self.max_bytes = self.config.get('log', 'max_bytes')
-        if self.max_files is None:
-            self.max_files = self.config.get('log', 'max_files')
-        if self.file_formatter is None:
-            format_str = "%(asctime)s (%(levelname)s) %(name)s : %(message)s"
-            self.file_formatter = logging.Formatter(format_str)
-        if self.console_formatter is None:
-            format_str = "%(levelname)s: %(message)s"
-            self.console_formatter = logging.Formatter(format_str)
-        if self.debug_formatter is None:
-            format_str = "%(asctime)s (%(levelname)s) %(name)s : %(message)s"
-            self.debug_formatter = logging.Formatter(format_str)
-        if self._clear_loggers is None:
-            self._clear_loggers = self.config.get('log', 'clear_loggers')
-        
-        if self._level is None:
-            self._level = self.config.get('log', 'level').upper()
-            if self._level not in self.levels:
-                self._level = 'INFO'
+        if self._meta.namespace is None:
+            self._meta.namespace = self.app._meta.label
 
+        self.backend = logging.getLogger(self._meta.namespace)
+        
         # the king trumps all
-        if util.is_true(self.config.get('base', 'debug')):
-            self._level = 'DEBUG'
+        if util.is_true(self.app._meta.debug):
+            self._meta.level = 'DEBUG'
             
-        self.set_level(self._level)
+        self.set_level(self._meta.level)
         
         # clear loggers?
-        if util.is_true(self._clear_loggers):
+        if util.is_true(self._meta.clear_loggers):
             self.clear_loggers()
             
         # console
-        if util.is_true(self.to_console):
+        if util.is_true(self._meta.to_console):
             self._setup_console_log()
         
         # file
-        if self.file:
+        if self._meta.file:
             self._setup_file_log()
             
         self.debug("logging initialized for '%s' using LoggingLogHandler" % \
-                   self.namespace)
+                   self._meta.namespace)
                  
     def set_level(self, level):
         """
@@ -210,7 +153,7 @@ class LoggingLogHandler(object):
         
         self.backend.setLevel(level)  
         
-        for handler in logging.getLogger(self.namespace).handlers:
+        for handler in logging.getLogger(self._meta.namespace).handlers:
             handler.setLevel(level)
             
     def clear_loggers(self):
@@ -218,13 +161,13 @@ class LoggingLogHandler(object):
         Clear any previously configured logging namespaces.
         
         """
-        if not self.namespace:
-            # setup() probably wasn't run
+        if not self._meta.namespace:
+            # _setup() probably wasn't run
             return
             
-        for i in logging.getLogger(self.namespace).handlers:
-            logging.getLogger(self.namespace).removeHandler(i)
-            self.backend = logging.getLogger(self.namespace)
+        for i in logging.getLogger(self._meta.namespace).handlers:
+            logging.getLogger(self._meta.namespace).removeHandler(i)
+            self.backend = logging.getLogger(self._meta.namespace)
     
     def _setup_console_log(self):
         """
@@ -233,10 +176,10 @@ class LoggingLogHandler(object):
         """
         console_handler = logging.StreamHandler()
         if self.level() == logging.getLevelName(logging.DEBUG):
-            console_handler.setFormatter(self.debug_formatter)
+            format = logging.Formatter(self._meta.debug_format)
         else:
-            console_handler.setFormatter(self.console_formatter)
-            
+            format = logging.Formatter(self._meta.console_format)
+        console_handler.setFormatter(format)    
         console_handler.setLevel(getattr(logging, self.level()))   
         self.backend.addHandler(console_handler)
     
@@ -245,22 +188,27 @@ class LoggingLogHandler(object):
         Add a file log handler.
         
         """
-        if self.rotate:
+        file = os.path.abspath(os.path.expanduser(self._meta.file))
+        log_dir = os.path.dirname(file)
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+            
+        if self._meta.rotate:
             from logging.handlers import RotatingFileHandler
             file_handler = RotatingFileHandler(
-                self.file, 
-                maxBytes=int(self.max_bytes), 
-                backupCount=int(self.max_files),
+                file, 
+                maxBytes=int(self._meta.max_bytes), 
+                backupCount=int(self._meta.max_files),
                 )
         else:
             from logging import FileHandler
-            file_handler = FileHandler(self.file)
+            file_handler = FileHandler(file)
         
         if self.level() == logging.getLevelName(logging.DEBUG):
-            file_handler.setFormatter(self.debug_formatter)
+            format = logging.Formatter(self._meta.debug_format)
         else:
-            file_handler.setFormatter(self.file_formatter)
-            
+            format = logging.Formatter(self._meta.file_format)
+        file_handler.setFormatter(format)   
         file_handler.setLevel(getattr(logging, self.level())) 
         self.backend.addHandler(file_handler)
         

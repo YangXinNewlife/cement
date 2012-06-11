@@ -3,7 +3,7 @@ Cement core interface module.
 
 """
 
-from cement2.core import exc
+from ..core import exc
 
 class Interface(object):
     def __init__(self):
@@ -30,7 +30,7 @@ class Attribute(object):
     def __repr__(self):
         return "<interface.Attribute - '%s'>" % self.description
         
-def validate(interface, obj, members, **kw):
+def validate(interface, obj, members=[], meta=['interface', 'label']):
     """
     A wrapper to validate interfaces.
     
@@ -41,34 +41,32 @@ def validate(interface, obj, members, **kw):
             
         obj
             The object to validate.
-            
+
+    Optional Arguments:
+                
         members
             The object members that must exist.
             
-    Optional Arguments:
-    
-        Meta
-            A list of members to validate in the handler classes Meta class.
-            Defaults to ['interface', 'label'].
+        meta
+            The meta object members that must exist.
             
     """
     invalid = []
-    Meta = kw.get('Meta', ['interface', 'label'])
 
-    if hasattr(obj, 'Meta') and interface != obj.Meta.interface:
-        raise exc.CementInterfaceError("%s does not implement '%s'." % \
+    if hasattr(obj, '_meta') and interface != obj._meta.interface:
+        raise exc.CementInterfaceError("%s does not implement %s." % \
                                       (obj, interface))
         
     for member in members:
         if not hasattr(obj, member):
             invalid.append(member)
     
-    if not hasattr(obj, 'Meta'):
-        invalid.append("Meta")
+    if not hasattr(obj, '_meta'):
+        invalid.append("_meta")
     else:
-        for member in Meta:
-            if not hasattr(obj.Meta, member):
-                invalid.append("Meta.%s" % member)
+        for member in meta:
+            if not hasattr(obj._meta, member):
+                invalid.append("_meta.%s" % member)
             
     if invalid:
         raise exc.CementInterfaceError("Invalid or missing: %s in %s" % \

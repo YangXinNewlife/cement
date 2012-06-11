@@ -3,13 +3,13 @@ Cement core log module.
 
 """
 
-from cement2.core import exc, backend, interface
+from ..core import exc, backend, interface, handler
             
 def log_validator(klass, obj):
     """Validates an handler implementation against the ILog interface."""
     
     members = [
-        'setup',
+        '_setup',
         'clear_loggers',
         'set_level',
         'level',
@@ -49,21 +49,17 @@ class ILog(interface.Interface):
     # Must be provided by the implementation
     Meta = interface.Attribute('Handler Meta-data')
     
-    def setup(config_obj):
+    def _setup(app_obj):
         """
-        The setup function is called during application initialization and
+        The _setup function is called during application initialization and
         must 'setup' the handler object making it ready for the framework
         or the application to make further calls to it.
         
         Required Arguments:
         
-            config_obj
-                The application configuration object.  This is a config object 
-                that implements the :ref:`IConfig` <cement2.core.config>` 
-                interface and not a config dictionary, though some config 
-                handler implementations may also function like a dict 
-                (i.e. configobj).
-                
+            app_obj
+                The application object. 
+                                
         Returns: n/a
         
         """
@@ -140,3 +136,14 @@ class ILog(interface.Interface):
                 The message to log.
         
         """
+
+class CementLogHandler(handler.CementBaseHandler):
+    """
+    Base class that all Log Handlers should sub-class from.
+    
+    """
+    class Meta:
+        interface = ILog
+        
+    def __init__(self, *args, **kw):
+        super(CementLogHandler, self).__init__(*args, **kw)

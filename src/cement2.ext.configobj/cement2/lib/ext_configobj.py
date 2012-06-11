@@ -1,13 +1,17 @@
 """ConfigObj Framework Extension Library"""
 
 import os
-from configobj import ConfigObj
+import sys
+from ..core import config, backend, exc
 
-from cement2.core import config, backend
+if sys.version_info[0] >= 3:
+    raise exc.CementRuntimeError('ConfigObj does not support Python 3.') # pragma: no cover
+    
+from configobj import ConfigObj
 
 Log = backend.minimal_logger(__name__)
 
-class ConfigObjConfigHandler(ConfigObj):
+class ConfigObjConfigHandler(config.CementConfigHandler, ConfigObj):
     """
     This class implements the :ref:`IConfig <cement2.core.config>` 
     interface, and sub-classes from `configobj.ConfigObj <http://www.voidspace.org.uk/python/configobj.html>`_,
@@ -16,6 +20,7 @@ class ConfigObjConfigHandler(ConfigObj):
 
     Arguments and Keyword arguments are passed directly to ConfigObj
     on initialization.
+    
     """
     class Meta:
         interface = config.IConfig
@@ -23,24 +28,10 @@ class ConfigObjConfigHandler(ConfigObj):
         
     def __init__(self, *args, **kw):
         super(ConfigObjConfigHandler, self).__init__(*args, **kw)
+        self.app = None
         
-    def setup(self, defaults):
-        """
-        Sets up the class for use by the framework, then calls self.merge() 
-        with the passed defaults.  
-        
-        Required Arguments:
-        
-            defaults
-                The application default config dictionary.  This is *not* a 
-                config object, but rather a dictionary which should be 
-                obvious because the config handler implementation is what
-                provides the application config object.
-                
-        Returns: n/a
-        
-        """
-        self.merge(defaults)
+    def _setup(self, app_obj):
+        self.app = app_obj
     
     def get_sections(self):
         """
@@ -49,6 +40,21 @@ class ConfigObjConfigHandler(ConfigObj):
         """
         return self.sections
             
+    def get_section_dict(self, section):
+        """
+        Return a dict representation of a section.
+        
+        Required Arguments:
+        
+            section:
+                The section of the configuration.  I.e. [block_section]
+                
+        """
+        dict_obj = dict()
+        for key in self.keys(section):
+            dict_obj[key] = self.get(section, key)
+        return dict_obj
+        
     def parse_file(self, file_path):
         """
         Parse config file settings from file_path, overwriting existing 
@@ -63,9 +69,10 @@ class ConfigObjConfigHandler(ConfigObj):
         Returns: Bool
         
         """
+        file_path = os.path.abspath(os.path.expanduser(file_path))
         if os.path.exists(file_path):
             _c = ConfigObj(file_path)
-            self.merge(_c)
+            self.merge(_c.dict())
             return True
         else:
             Log.debug("file '%s' does not exist, skipping..." % \

@@ -5,8 +5,8 @@ classes and functions exist in cement2.lib.ext_yaml.
     
 """
 
-from cement2.core import handler, hook
-from cement2.lib.ext_yaml import YamlOutputHandler
+from ..core import handler, hook
+from ..lib.ext_yaml import YamlOutputHandler
 
 handler.register(YamlOutputHandler)
 
@@ -18,3 +18,9 @@ def cement_post_setup_hook(app):
     """
     app.args.add_argument('--yaml', dest='output_handler', 
         action='store_const', help='toggle yaml output handler', const='yaml')
+
+@hook.register()
+def cement_pre_run_hook(app):
+    if '--yaml' in app._meta.argv:
+        app._meta.output_handler = 'yaml'
+        app._setup_output_handler()

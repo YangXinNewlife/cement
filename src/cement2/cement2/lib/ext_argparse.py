@@ -2,13 +2,13 @@
 ArgParse Framework Extension Library.
     
 """
-
+            
 from argparse import ArgumentParser
-from cement2.core import backend, arg
+from ..core import backend, arg
 
 Log = backend.minimal_logger(__name__)
     
-class ArgParseArgumentHandler(ArgumentParser):
+class ArgParseArgumentHandler(arg.CementArgumentHandler, ArgumentParser):
     """
     This class implements the :ref:`IArgument <cement2.core.arg>` 
     interface, and sub-classes from `argparse.ArgumentParser <http://docs.python.org/dev/library/argparse.html>`_.
@@ -25,27 +25,8 @@ class ArgParseArgumentHandler(ArgumentParser):
         label = 'argparse'
     
     def __init__(self, *args, **kw):
-        ArgumentParser.__init__(self, *args, **kw)
+        super(ArgParseArgumentHandler, self).__init__(*args, **kw)
         self.config = None
-        
-    def setup(self, config_obj):
-        """
-        Sets up the class for use by the framework.  Little is done here in
-        this implementation.
-        
-        Required Arguments:
-        
-            config_obj
-                The application configuration object.  This is a config object 
-                that implements the :ref:`IConfig <cement2.core.config>` 
-                interface and not a config dictionary, though some config 
-                handler implementations may also function like a dict 
-                (i.e. configobj).
-                
-        Returns: n/a
-        
-        """
-        self.config = config_obj
         
     def parse(self, arg_list):
         """

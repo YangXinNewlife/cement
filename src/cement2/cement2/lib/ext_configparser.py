@@ -1,18 +1,17 @@
 """ConfigParser Framework Extension Library."""
-
+        
 import os
 import sys
-
 if sys.version_info[0] < 3:
     from ConfigParser import RawConfigParser # pragma: no cover
 else:
     from configparser import RawConfigParser # pragma: no cover
 
-from cement2.core import backend, config
+from ..core import backend, config
 
 Log = backend.minimal_logger(__name__)
 
-class ConfigParserConfigHandler(RawConfigParser):
+class ConfigParserConfigHandler(config.CementConfigHandler, RawConfigParser):
     """
     This class is an implementation of the :ref:`IConfig <cement2.core.config>` 
     interface.  It handles configuration file parsing and the like by 
@@ -31,24 +30,8 @@ class ConfigParserConfigHandler(RawConfigParser):
         # ConfigParser is not a new style object, so you can't call super()
         # super(ConfigParserConfigHandler, self).__init__(*args, **kw)
         RawConfigParser.__init__(self, *args, **kw)
-        
-    def setup(self, defaults):
-        """
-        Sets up the class for use by the framework, then calls self.merge() 
-        with the passed defaults.  
-        
-        Required Arguments:
-        
-            defaults
-                The application default config dictionary.  This is *not* a 
-                config object, but rather a dictionary which should be 
-                obvious because the config handler implementation is what
-                provides the application config object.
-                
-        Returns: n/a
-        
-        """
-        self.merge(defaults)
+        super(ConfigParserConfigHandler, self).__init__(*args, **kw)
+        self.app = None
         
     def merge(self, dict_obj, override=True):
         """
@@ -101,6 +84,7 @@ class ConfigParserConfigHandler(RawConfigParser):
         Returns: Bool
         
         """
+        file_path = os.path.abspath(os.path.expanduser(file_path))
         if os.path.exists(file_path):
             self.read(file_path)
             return True
@@ -151,3 +135,19 @@ class ConfigParserConfigHandler(RawConfigParser):
         
         """
         return self.sections()
+    
+    def get_section_dict(self, section):
+        """
+        Return a dict representation of a section.
+        
+        Required Arguments:
+        
+            section:
+                The section of the configuration.  I.e. [block_section]
+                
+        """
+        dict_obj = dict()
+        for key in self.keys(section):
+            dict_obj[key] = self.get(section, key)
+        return dict_obj
+        

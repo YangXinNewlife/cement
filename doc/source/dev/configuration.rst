@@ -28,11 +28,11 @@ Configuration Ordering
 
 An applications configuration is made up of a number of things, including
 default settings, handler defaults, config file settings, etc.  The following
-is the order in which configurations are discoverred:
+is the order in which configurations are discovered:
 
     * Loaded from backend.defaults()
-    * Extended by any handler defaults (not overridden)
-    * Overridden by a defaults dict passed to foundation.lay_cement()
+    * Extended by any handler Meta.config_defaults (not overridden)
+    * Overridden by a config_defaults dict passed to foundation.CementApp()
     * Overridden by the configuration files
     * Overridden by command line options that match the same key name
 
@@ -40,18 +40,18 @@ is the order in which configurations are discoverred:
 Application Default Settings
 ----------------------------
 
-Cement requires a number of basic default settings in order to operate.  These
-settings are found under the 'base' section of the config, and overridden by
-a '[base]' block from a configuration file.
+Cement may in the future require default config settings in order to operate.  
+These settings are found under the '<app_label>' application section of the 
+config, and overridden by a '[<app_label>]' block from a configuration file.
 
-You do not need to override these values, and the default dictionary is used 
-if no other defaults are passed when creating an application.  For example,
-the following:
+You do not need to override these values, however you should always start
+with them.  Additionally, the default dictionary is used if no other defaults 
+are passed when creating an application.  For example, the following:
 
 .. code-block:: python
 
     from cement2.core import foundation
-    app = foundation.lay_cement('myapp')
+    app = foundation.CementApp('myapp')
 
 Is equivalent to:
 
@@ -59,7 +59,7 @@ Is equivalent to:
 
     from cement2.core import foundation, backend
     defaults = backend.defaults('myapp')
-    app = foundation.lay_cement('myapp', defaults=defaults)
+    app = foundation.CementApp('myapp', config_defaults=defaults)
     
 
 That said, you can override default settings or add your own defaults like
@@ -69,129 +69,83 @@ so:
 
     from cement2.core import foundation, backend
     
-    defaults = backend.defaults('myapp')
-    defaults['base']['debug'] = True
-    defaults['base']['foo'] = 'bar'
+    defaults = backend.defaults('myapp', 'section1','section2')
+    defaults['section1']['foo'] = 'bar'
+    defaults['section2']['foo2'] = 'bar2'
     
-    app = foundation.lay_cement('myapp', defaults=defaults)
+    app = foundation.CementApp('myapp', config_defaults=defaults)
 
 It is important to note that the default settings, which is a dict, is parsed
 by the config handler and loaded into it's own configuration mechanism.  
 Meaning, though some config handlers (i.e. ConfigObj) might also be accessible
 like a dict, not all do (i.e. ConfigParser).  Please see the documentation
-for the config handler you use for their full usage.   
+for the config handler you use for their full usage when accessing the 
+'app.config' object.   
 
-Builtin Defaults
-----------------
+Built-in Defaults
+-----------------
 
-The following are the builtin default settings provided by backend.defaults()
-and are accessible under the 'base' section of the config:
+The following are not required to exist in the config defaults, however if 
+they do, Cement will honor them (overriding built-in defaults).
 
-    app_name
-        The application name passed to backend.defaults()
-    
-    config_files
-        A list of configuration files to parse settings from when app.setup()
-        is called.
-
-        Value: [ '/etc/<app_name>/<app_name>.conf', '~/.<app_name>.conf' ]
-        
-    config_source
-        This is used internally to identify where configuration settings
-        were parsed from (config files only)... in the order they were parsed.
-        The list starts with ['defaults'], and any configuration files that
-        were parsed are appended to this list.
-    
-        Value: [ 'defaults' ]
-        
     debug
-        Toggles full debug mode (more or less trumps whatever the log
-        handler log level is set to).
+        Toggles debug output.  By default, this setting is also overridden
+        by the '[base] -> debug' config setting parsed in any
+        of the application configuration files (where [base] is the 
+        base configuration section of the application which is determined
+        by Meta.config_section but defaults to Meta.label).
         
-        Value: True
-    
-    plugins
-        A list of enabled plugins as provided by the plugin_handler.
-    
-        Value: [ ]
+        Default: False
     
     plugin_config_dir
-        A directory path to search for plugin configuration files.
+        A directory path where plugin config files can be found.  Files
+        must end in '.conf'.  By default, this setting is also overridden
+        by the '[base] -> plugin_config_dir' config setting parsed in any
+        of the application configuration files.
         
-        Value: '/etc/<app_name>/plugins.d/'
-    
-    plugin_bootstrap_module
-        A pythonic module path to load plugins from 
-        (i.e. myapp.bootstrap.myplugin).
+        Default: None
         
-        Value: '<app_name>.bootstrap'
+        Note: Though the meta default is None, Cement will set this to
+        '/etc/<app_label>/plugins.d/' if not set during app.setup().
     
     plugin_dir
-        A directory path to load plugin modules from.
+        A directory path where plugin code (modules) can be loaded from.
+        By default, this setting is also overridden by the 
+        '[base] -> plugin_dir' config setting parsed in any of the 
+        application configuration files (where [base] is the 
+        base configuration section of the application which is determined
+        by Meta.config_section but defaults to Meta.label).
         
-        Value: '/usr/lib/<app_name>/plugins'
-    
-    extensions
-        Default extensions to load.  This list can easily be appended, rather
-        than overridden entirely in order to ensure that all required default 
-        handlers are loaded (primarily when Cement is updated and might add
-        new handlers).
+        Default: None
         
-        Value: [ 
-            'cement2.ext.ext_nulloutput',
-            'cement2.ext.ext_plugin',
-            'cement2.ext.ext_configparser', 
-            'cement2.ext.ext_logging', 
-            'cement2.ext.ext_argparse',
-            ]
+        Note: Though the meta default is None, Cement will set this to
+        '/usr/lib/<app_label>/plugins/' if not set during app.setup()
     
-    config_handler
-        The default config handler.
-        
-        Value: 'configparser'
-    
-    log_handler
-        The default log handler.
-        
-        Value: 'logging'
-    
-    arg_handler
-        The default argument handler.
-        
-        Value: 'argparse'
-    
-    plugin_handler
-        The default plugin handler.
-        
-        Value: 'cement'
-    
-    extension_handler
-        The default extension handler.
-        
-        Value: 'cement'
-    
-    output_handler
-        The default output handler.
-        
-        Value: 'null'
-    
-    controller_handler
-        The default controller handler.
-        
-        Value: 'base'
-    
+Application Configuration Defaults vs Handler Configuration Defaults
+--------------------------------------------------------------------
 
-    
+There may be slight confusion between the 'CementApp.Meta.config_defaults'
+and the 'CementBaseHandler.Meta.config_defaults' options.  They both are very 
+similar, however the application level configuration defaults is intended to
+be used to set defaults for multiple sections.  Therefore, the 
+CementApp.Meta.config_defaults option is a dict() with nested dict()'s 
+under it.  Each key of the top level dict() relates to a config [section]
+and the nested dict() are the settings for that [section].
+
+The CementBaseHandler.Meta.config_defaults only partain to a single [section] and
+therefor is only a single level dict(), whose settings are applied to the
+CementBaseHandler.Meta.config_section of the application's configuration.
+
 Accessing Configuration Settings
 --------------------------------
 
 After application creation, you can access the config handler via the 
-'config' object.  For example:
+'app.config' object.  For example:
 
 .. code-block:: python
 
     from cement2.core import foundation
-    app = foundation.lay_cement('myapp')
+    app = foundation.CementApp('myapp')
     
     # First setup the application
     app.setup()
@@ -233,7 +187,7 @@ a configuration file.  This can be done by:
 .. code-block:: python
 
     from cement2.core import foundation
-    app = foundation.lay_cement('myapp')
+    app = foundation.CementApp('myapp')
     
     # First setup the application
     app.setup()
@@ -241,27 +195,21 @@ a configuration file.  This can be done by:
     # Parse a configuration file
     app.config.parse_file('/path/to/some/file.conf')
     
-Note that Cement automatically parses any config files listed in the 'base -> 
-config_files' section.  For example:
+Note that Cement automatically parses any config files listed in the 
+CementApp.Meta.config_files list.  For example:
 
 .. code-block:: python
 
     from cement2.core import foundation, backend
     
-    defaults = backend.defaults('myapp')
-    defaults['base']['config_files'] = ['/path/to/config1', '/path/to/config2']
-    app = foundation.lay_cement('myapp', defaults=defaults)
-    
-    # First setup the application
-    app.setup()
-    
+    app = foundation.CementApp('myapp', 
+        config_files=['/path/to/config1', '/path/to/config2'],
+        )
 
-The default 'config_files' setting already looks for config files in standard
-locations (for Unix/Linux anyway).  For example, for an application called
-'helloworld', the default config_files are:
+If no config_files meta data is provided, Cement will set the defaults to:
 
-    * /etc/helloworld/helloworld.conf
-    * ~/.helloworld.conf
+    * /etc/<app_label>/<app_label>.conf
+    * ~/.<app_label>.conf
     
     
 Overriding Configurations with Command Line Options
@@ -274,53 +222,69 @@ matches the name.  Note that this happens in *all* sections:
 
     from cement2.core import foundation
     
-    defaults = backend.defaults('myapp')
+    defaults = backend.defaults('base')
     defaults['base']['foo'] = 'bar'
-    app = foundation.lay_cement('myapp')
     
-    # First setup the application
-    app.setup()
+    try:
+        app = foundation.CementApp('myapp', config_defaults=defaults)
     
-    # Add arguments
-    app.args.add_argument('--foo', action='store', dest='foo')
+        # First setup the application
+        app.setup()
     
-    # Run the application (this parsed command line, among other things)
-    app.run()
+        # Add arguments
+        app.args.add_argument('--foo', action='store', dest='foo')
+    
+        # Run the application (this parsed command line, among other things)
+        app.run()
 
-    # close the application
-    app.close()
+    finally:
+        # close the application
+        app.close()
     
 At the command line, running the application and passing the '--foo=some_value'
 option will override the 'foo' setting under the 'base' (or any other) section.
 
+Configuration Options Versus Meta Options
+-----------------------------------------
 
+As you will see extensively throughout the Cement code is the use of Meta 
+options.  There can be some confusion between the use of Meta options, and
+application configuration options.  The following explains the two:
 
-Customizing Configuration Handlers
-----------------------------------
+*Configuration Options*
 
-Some config handlers might allow customizations, or accept additional 
-arguments that you might want to pass and take advantage of.  Please note that
-this is based on the handler implementation, and not the IConfig interface.
+Configuration options are application specific.  There are config defaults
+defined by the application developer, but those defaults can either be 
+overridden by command line options of the same name, or config file settings.
+Cement does not rely on the application configuration, though it can honor 
+configuration settings.  For example, CementApp() honors the 'debug' config
+option which is documented, but it doesn't rely on it existing either.
 
-For example:
+The key things to note about configuration options are:
 
-.. code-block:: python
-
-    from cement2.core import foundation
-    from myapp.config import MyConfigHandler
+    * They give the end user flexibility in how the application operates.
+    * Anything that you want users to be able to customize via a config file.
+      For example, the path to a log file or the location of a database 
+      server. These are things that you do not want 'hard-coded' into your 
+      app, but rather might want sane defaults for.
     
-    myconfig = MyConfigHandler(some_keywork='some_value')
-    
-    # do something else with config_handler
-    
+*Meta Options*
+ 
+Meta options are used on the backend by developers to alter how classes 
+operate.  For example, the CementApp class has a meta option of 'log_handler'.
+The default log handler is LoggingLogHandler, but because this is built on
+an interface definition, Cement can use any other log handler the same way
+without issue as long as that log handler abides by the interface definition.
+Meta options make this change seamless and allows the handler to alter 
+functionality, rather than having to change code in the top level class 
+itself.
 
-Note that, at this point the config handler is instantiated, but it is not 
-setup for use by the framework, meaning that some functions might not work
-as expected.  Cement calls 'setup()' on all handlers when app.setup() is 
-called.  Now you just need to pass the handler when creating a new 
-application.
+The key thing to note about Meta options are:
 
-.. code-block:: python
-    
-    app = foundation.lay_cement('myapp', config_handler=myconfig)
-    
+    * They give the developer flexibility in how the code operates.
+    * End users should not have access to modify Meta options via a config 
+      file or similar 'dynamic' configuration.
+    * Meta options are used to alter how classes work, however are considered
+      'hard-coded' settings.  If the developer chooses to alter a Meta option,
+      it is for the life of that release.  
+    * Meta options should have a sane default, and be clearly documented.

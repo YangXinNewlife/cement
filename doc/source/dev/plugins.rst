@@ -19,8 +19,8 @@ documentation for writing your own plugin handler.
 Plugin Configuration Settings
 -----------------------------
 
-There are a few settings related to how plugins are loaded under the 'base'
-section of your application's configuration.  These are:
+There are a few settings related to how plugins are loaded under the 
+applications Meta options.  These are:
 
 plugin_config_dir
 ^^^^^^^^^^^^^^^^^
@@ -37,8 +37,8 @@ This is simply an external location where plugins can be loaded from.  This is
 usually something like '/var/lib/myapp/plugins' or similar.  Plugins here must
 be a single file.
 
-plugin_bootstrap_module
-^^^^^^^^^^^^^^^^^^^^^^^
+plugin_bootstrap
+^^^^^^^^^^^^^^^^
 
 For internal plugins, or plugins that tie into the actual python namespace
 as the application.  For example, via Setuptools you can define 
@@ -74,7 +74,7 @@ options and commands via an application controller:
             description = 'This is my plugin controller.'
             stacked_on = 'base'
         
-            defaults = dict(foo='bar')
+            config_defaults = dict(foo='bar')
     
             arguments = [
                 (['--foo'], dict(action='store', help='the infamous foo option')),
@@ -89,7 +89,7 @@ options and commands via an application controller:
 
 As you can see, this is very similar to an application that has a base 
 controller, however as you'll note we do not create an application object
-via foundation.lay_cement() like we do in our application.  This code/file
+via foundation.CementApp() like we do in our application.  This code/file
 would then be saved to a location defined by your applications configuration
 that determines where plugins are loaded from (See the next section).
 
@@ -109,20 +109,13 @@ Loading a Plugin
 ----------------
 
 Plugins are looked for first in the 'plugin_dir', and if not found then 
-Cement attempts to load them from the 'plugin_bootstrap_module'.  The following
+Cement attempts to load them from the 'plugin_bootstrap'.  The following
 application shows how to configure an application to load plugins:
 
 .. code-block:: python
 
     import sys
     from cement2.core import backend, foundation, controller, handler
-
-    defaults = backend.defaults('helloworld')
-    defaults['base']['plugin_config_dir'] = './config/plugins.d'
-    defaults['base']['plugin_dir'] = './plugins'
-
-    # create an application
-    app = foundation.lay_cement('helloworld', defaults=defaults)
 
     # define an application base controller
     class HelloWorldBaseController(controller.CementBaseController):
@@ -131,7 +124,7 @@ application shows how to configure an application to load plugins:
             label = 'base'
             description = "HelloWorld does amazing things!"
 
-            defaults = dict(
+            config_defaults = dict(
                 foo='bar',
                 some_other_option='my default value',
                 )
@@ -152,21 +145,28 @@ application shows how to configure an application to load plugins:
         def command1(self):
             self.log.info("Inside base.command1 function.")
     
-    handler.register(HelloWorldBaseController)
+    try:
+        # create an application
+        app = foundation.CementApp('helloworld', 
+            base_controller=HelloWorldBaseController,
+            plugin_config_dir='./config/plugins.d'
+            plugin_dir='./plugins'
+            )
 
-    # setup the application
-    app.setup()
+        # setup the application
+        app.setup()
 
-    # run the application
-    app.run()
+        # run the application
+        app.run()
 
-    # close the application
-    app.close()
+    finally:
+        # close the application
+        app.close()
     
     
 As you can see, we modified the default settings for 'plugin_config_dir' and
 'plugin_dir'.  Note that the default config setting for 
-'plugin_bootstrap_module' would be 'helloworld.bootstrap' which is what we 
+'plugin_bootstrap' would be 'helloworld.bootstrap' which is what we 
 want here anyway so it is left the default.  
 
 Running this application will do nothing particularly special, however by 
@@ -195,7 +195,7 @@ for example:
             description = 'This is my plugin controller.'
             stacked_on = 'base'
     
-            defaults = dict(some_option='some_value')
+            config_defaults = dict(some_option='some_value')
 
             arguments = [
                 (['--some-option'], dict(action='store')),

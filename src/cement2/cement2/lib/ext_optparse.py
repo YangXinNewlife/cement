@@ -1,11 +1,11 @@
 """OptParse Framework Extension Library."""
 
 from optparse import OptionParser
-from cement2.core import backend, arg
+from ..core import backend, arg
 
 Log = backend.minimal_logger(__name__)
 
-class OptParseArgumentHandler(OptionParser):
+class OptParseArgumentHandler(arg.CementArgumentHandler, OptionParser):
     """
     This class implements the :ref:`IArgument <cement2.core.arg>` 
     interface, and sub-classes from `optparse.OptionParser <http://docs.python.org/library/optparse.html>`_.
@@ -22,26 +22,8 @@ class OptParseArgumentHandler(OptionParser):
     
     def __init__(self, *args, **kw):     
         OptionParser.__init__(self, *args, **kw)
+        arg.CementArgumentHandler.__init__(self, *args, **kw)
         self.config = None
-        
-    def setup(self, config_obj):
-        """
-        Sets up the class for use by the framework.  Little is done here in
-        this implementation.
-        
-        Required Arguments:
-        
-            config_obj
-                The application configuration object.  This is a config object 
-                that implements the :ref:`IConfig <cement2.core.config>` 
-                interface and not a config dictionary, though some config 
-                handler implementations may also function like a dict 
-                (i.e. configobj).
-                
-        Returns: n/a
-        
-        """
-        self.config = config_obj
         
     def parse(self, arg_list):
         """

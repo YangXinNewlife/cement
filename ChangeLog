@@ -15,8 +15,67 @@ is available online at:
 .. raw:: html
 
     <BR><BR>
+
+1.9.9 - development version (will be released as 1.9.10)
+------------------------------------------------------------------------------
+
+Misc:
+
+    * :issue:`111` - Use relative imports (makes cement2 more portable as it
+    can be included and distributed with 3rd party sources).
     
-1.9.3 - development (will be released as 1.9.4)
+
+1.9.8 - Thu May 3, 2012
+------------------------------------------------------------------------------
+
+Feature Enhancements:
+
+    * :issue:`95` - Add a 'config_section' Meta default for all handlers.
+      Required to parse config options for a handler.
+    * :issue:`97` - Add a standard cache handler interface.
+    * :issue:`105` - Add 'meta_override' and 'core_meta_override' list to 
+      CementApp().Meta.  Also resolves :issue:`104`.
+    * :issue:`108` - Add CementApp.extend() functionality.
+    * :issue:`109` - Add cement2.ext.memcached extension
+
+Incompatible Changes:
+
+    * :issue:`103` - plugin_bootstrap_module renamed as plugin_bootstrap.
+    * :issue:`106` - Deprecate Meta.defaults in favor of Meta.config_defaults
+    * :issue:`107` - Make the app name the default config section, not [base]
+
+1.9.6 - Wed Apr 18, 2012
+------------------------------------------------------------------------------
+
+Bug Fixes:
+
+    * :issue:`89` - Secondary controllers display under other controllers
+    * :issue:`90` - Logging to file doesn't expand '~'
+    * :issue:`91` - Logging to file doesn't create basedir
+    
+Feature Enhancements:
+
+    * :issue:`88` - Add cement2.ext.genshi extension, provides Genshi Text
+      Templating Launguage support.
+    * :issue:`93` - Add epilog support for CementBaseController.
+
+Refactoring:
+
+    * :issue:`87` - Refactor Meta handling
+    
+Incompatible Changes:
+
+    * :issue:`96` - Move 'setup()' functions to '_setup()'
+    * Moved CementBaseController.dispatch() to _dispatch()
+    * Moved CementBaseController.usage_text to _usage_text()
+    * Moved CementBaseController.help_text to _help_text()
+    * backend.defaults() no longer accepts an app name as an argument.
+    * foundation.lay_cement() is deprecated.  Use foundation.CementApp() 
+      directly.
+    * No longer pass anything but 'app' object to handlers _setup() functions.
+    * handler.enabled() is deprecated.  Use handler.registered().
+    
+1.9.4 - Wed Dec 21, 2011
 ------------------------------------------------------------------------------
 
 Bug Fixes:
@@ -31,7 +90,7 @@ Feature Enhancements:
       passing the '--daemon' option.  Handles switching the run user/group, as
       well as managing a pid file.
     * :issue:`72` - Added new framework hooks.
-    * :issue:`76` - Add app.close() functionality including a 
+    * :issue:`76` - Added app.close() functionality including a 
       cement_on_close_hook() allowing plugins/extensions/etc to be able to
       cleanup on application exit.
     * :issue:`77` - Added default signal handler for SIGINT/SIGTERM as well as

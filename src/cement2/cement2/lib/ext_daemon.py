@@ -3,11 +3,12 @@ Daemon Framework Extension Library.
         
 """
 
-import sys
 import os
+import io
+import sys
 import pwd
 import grp
-from cement2.core import backend, exc
+from ..core import backend, exc
 
 Log = backend.minimal_logger(__name__)
 
@@ -87,9 +88,13 @@ class Environment(object):
             f = open(self.pid_file, 'w')
             f.write(pid)
             f.close()
-            os.chown(os.path.dirname(self.pid_file), 
-                     self.user.pw_uid, self.group.gr_gid)
-        
+            try:
+                os.chown(os.path.dirname(self.pid_file), 
+                         self.user.pw_uid, self.group.gr_gid)
+            except OSError as e:
+                Log.debug("unable to chown %s:%s %s" % \
+                         (self.user.pw_uid, self.group.gr_gid, self.pid_file))
+                         
     def switch(self):
         """
         Switch the current process's user/group to self.user_name, and 
@@ -156,14 +161,26 @@ class Environment(object):
         # Redirect standard file descriptors.
         stdin = open(self.stdin, 'r')
         stdout = open(self.stdout, 'a+')
-        stderr = open(self.stderr, 'a+', 0)
+        stderr = open(self.stderr, 'a+')
         
         if hasattr(sys.stdin, 'fileno'):
-            os.dup2(stdin.fileno(), sys.stdin.fileno())
+            try:
+                os.dup2(stdin.fileno(), sys.stdin.fileno())
+            except io.UnsupportedOperation as e:
+                # FIXME: ?
+                pass
         if hasattr(sys.stdout, 'fileno'):
-            os.dup2(stdout.fileno(), sys.stdout.fileno())
+            try:
+                os.dup2(stdout.fileno(), sys.stdout.fileno())
+            except io.UnsupportedOperation as e:
+                # FIXME: ?
+                pass
         if hasattr(sys.stderr, 'fileno'):    
-            os.dup2(stderr.fileno(), sys.stderr.fileno())       
+            try:
+                os.dup2(stderr.fileno(), sys.stderr.fileno())       
+            except io.UnsupportedOperation as e:
+                # FIXME: ?
+                pass
                  
         # Update our pid file
         self._write_pid_file()

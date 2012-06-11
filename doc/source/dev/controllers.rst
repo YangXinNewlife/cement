@@ -31,17 +31,15 @@ handle command dispatch and rapid development.
 
     from cement2.core import backend, foundation, controller, handler
 
-    # create an application
-    app = foundation.lay_cement('example')
-
     # define an application base controller
     class MyAppBaseController(controller.CementBaseController):
         class Meta:
             interface = controller.IController
             label = 'base'
             description = "My Application does amazing things!"
-
-            defaults = dict(
+            epilog = "This is the text at the bottom of --help."
+            
+            config_defaults = dict(
                 foo='bar',
                 some_other_option='my default value',
                 )
@@ -65,17 +63,21 @@ handle command dispatch and rapid development.
         @controller.expose(aliases=['cmd2'], help="more of nothing.")
         def command2(self):
             self.log.info("Inside base.command2 function.")
+    
+    try:
+        # create an application
+        app = foundation.CementApp('example', 
+            base_controller=MyAppBaseController
+            )
+
+        # setup the application
+        app.setup()
         
-    handler.register(MyAppBaseController)
-
-    # setup the application
-    app.setup()
-
-    # run the application
-    app.run()
-
-    # close the application
-    app.close()
+        # run the application
+        app.run()
+    finally:
+        # close the application
+        app.close()
     
 As you can see, we're able to build out the core functionality of our app
 via a controller class.  Lets see what this looks like:
@@ -102,7 +104,9 @@ via a controller class.  Lets see what this looks like:
       --foo FOO   the notorious foo option
       -C          the big C option
       
-      
+    This is the text at the bottom of --help.
+    
+    
     $ python example2.py 
     INFO: Inside base.default function.
     
@@ -139,9 +143,6 @@ and the other is not.  Pay attention to how this looks at the command line:
 
     from cement2.core import backend, foundation, controller, handler
 
-    # create an application
-    app = foundation.lay_cement('example')
-
     # define an application base controller
     class MyAppBaseController(controller.CementBaseController):
         class Meta:
@@ -149,7 +150,7 @@ and the other is not.  Pay attention to how this looks at the command line:
             label = 'base'
             description = "My Application does amazing things!"
 
-            defaults = dict(
+            config_defaults = dict(
                 foo='bar',
                 some_other_option='my default value',
                 )
@@ -176,7 +177,7 @@ and the other is not.  Pay attention to how this looks at the command line:
             label = 'controller2'
             stacked_on = 'base'
             description = 'This is the description for controller2.'
-            defaults = dict()
+            config_defaults = dict()
 
             arguments = [
                 (['--foo2'], dict(action='store', help='the notorious foo option')),
@@ -191,7 +192,7 @@ and the other is not.  Pay attention to how this looks at the command line:
             interface = controller.IController
             label = 'controller3'
             description = 'This is the description for controller3.'
-            defaults = dict()
+            config_defaults = dict()
 
             arguments = [
                 (['--foo3'], dict(action='store', help='the notorious foo option')),
@@ -205,19 +206,23 @@ and the other is not.  Pay attention to how this looks at the command line:
         def command3(self):
             self.log.info('Inside controller3.command3 function.')
 
-
-    handler.register(MyAppBaseController)
-    handler.register(Controller2)
-    handler.register(Controller3)
-
-    # setup the application
-    app.setup()
-
-    # run the application
-    app.run()
+    try:
+        # create an application
+        app = foundation.CementApp('example', 
+            base_controller=MyAppBaseController
+            )
     
-    # close the application
-    app.close()
+        handler.register(Controller2)
+        handler.register(Controller3)
+
+        # setup the application
+        app.setup()
+        
+        # run the application
+        app.run()
+    finally:
+        # close the application
+        app.close()
 
 From our 'base' namespace this looks like:
 

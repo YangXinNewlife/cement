@@ -1,6 +1,6 @@
 """Cement core plugins module."""
 
-from cement2.core import backend, exc, interface
+from ..core import backend, exc, interface, handler
 
 Log = backend.minimal_logger(__name__)
 
@@ -8,10 +8,12 @@ def plugin_validator(klass, obj):
     """Validates an handler implementation against the IPlugin interface."""
     
     members = [
-        'setup',
+        '_setup',
         'load_plugin',
         'load_plugins',
         'loaded_plugins',
+        'enabled_plugins',
+        'disabled_plugins',
         ]
     interface.validate(IPlugin, obj, members)
     
@@ -46,21 +48,17 @@ class IPlugin(interface.Interface):
     enabled_plugins = interface.Attribute('List of enabled plugins')
     disabled_plugins = interface.Attribute('List of disabled plugins')
     
-    def setup(config_obj):
+    def _setup(app_obj):
         """
-        The setup function is called during application initialization and
+        The _setup function is called during application initialization and
         must 'setup' the handler object making it ready for the framework
         or the application to make further calls to it.
         
         Required Arguments:
         
-            config_obj
-                The application configuration object.  This is a config object 
-                that implements the :ref:`IConfig` <cement2.core.config>` 
-                interface and not a config dictionary, though some config 
-                handler implementations may also function like a dict 
-                (i.e. configobj).
-                
+            app_obj
+                The application object. 
+                                
         Returns: n/a
         
         """
@@ -87,3 +85,14 @@ class IPlugin(interface.Interface):
         
         """
         
+class CementPluginHandler(handler.CementBaseHandler):
+    """
+    Base class that all Plugin Handlers should sub-class from.
+    
+    """
+    
+    class Meta:
+        interface = IPlugin
+        
+    def __init__(self, *args, **kw):
+        super(CementPluginHandler, self).__init__(*args, **kw)

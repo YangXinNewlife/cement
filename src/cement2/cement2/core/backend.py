@@ -4,72 +4,29 @@ import os
 import sys
 import logging
 
-from cement2.core import exc
+from ..core import exc
 
-def defaults(app_name):
+def defaults(*sections):
     """
-    Get a standard, default config.
+    Returns a standard dictionary object to use for application defaults.
+    If sections are given, it will create a nested dict for each section name.
     
-    Required Arguments:
-    
-        app_name
-            The name of the application.  This is a single, alpha-numeric
-            string (underscores allowed).
-            
     Usage:
     
-    .. code-block:: python
-    
         from cement2.core import foundation, backend
-        defaults = backend.defaults('myapp_name')
-        app = foundation.lay_cement('myapp_name', defaults=defaults)
         
-    """
-    ok = ['_']
-    for char in app_name:
-        if char in ok:
-            continue
-            
-        if not char.isalnum():
-            raise exc.CementRuntimeError(
-                "app_name must be alpha-numeric, or underscore."
-                )
-            
-    # default backend configuration
-    dcf = {}
-    dcf['base'] = {}
-    dcf['base']['app_name'] = app_name
-    dcf['base']['config_files'] = [
-        os.path.join('/', 'etc', app_name, '%s.conf' % app_name),
-        os.path.join(os.environ['HOME'], '.%s.conf' % app_name),
-        ]
-    dcf['base']['config_source'] = ['defaults']
-    dcf['base']['debug'] = False
+        defaults = backend.defaults('myapp', 'section2', 'section3')
+        defaults['myapp']['debug'] = False
+        defaults['section2']['foo'] = 'bar
+        defaults['section3']['foo2'] = 'bar2'
+        
+        app = foundation.CementApp('myapp', config_defaults=defaults)
     
-    dcf['base']['plugins'] = []
-    dcf['base']['plugin_config_dir'] = '/etc/%s/plugins.d' % app_name
-    dcf['base']['plugin_bootstrap_module'] = '%s.bootstrap' % app_name
-    dcf['base']['plugin_dir'] = '/usr/lib/%s/plugins' % app_name
-
-    # default extensions
-    dcf['base']['extensions'] = [  
-        'cement2.ext.ext_nulloutput',
-        'cement2.ext.ext_plugin',
-        'cement2.ext.ext_configparser', 
-        'cement2.ext.ext_logging', 
-        'cement2.ext.ext_argparse',
-        ]
-    
-    # default handlers
-    dcf['base']['config_handler'] = 'configparser'
-    dcf['base']['log_handler'] = 'logging'
-    dcf['base']['arg_handler'] = 'argparse'
-    dcf['base']['plugin_handler'] = 'cement'
-    dcf['base']['extension_handler'] = 'cement'
-    dcf['base']['output_handler'] = 'null'
-    dcf['base']['controller_handler'] = 'base'
-    
-    return dcf
+    """        
+    defaults = dict()
+    for section in sections:
+        defaults[section] = dict()
+    return defaults
 
 def minimal_logger(name, debug=False):
     """
@@ -78,6 +35,19 @@ def minimal_logger(name, debug=False):
     the application is functional (and more importantly before the 
     applications log handler is usable).
     
+    Required Arguments:
+    
+        name
+            The logging namespace.  This is generally '__name__' or anything
+            you want.
+    
+    Optional Arguments:
+    
+        debug
+            Toggle debug output.
+            
+            Default: False
+            
     Usage:
     
     .. code-block:: python
@@ -113,7 +83,7 @@ handlers = {}
 hooks = {}
 
 # Save original stdout/stderr for supressing output.  This is actually reset
-# in foundation.lay_cement before nullifying output, but we set it here
-# just for a default.
+# in foundation.CementApp.lay_cement() before nullifying output, but we set 
+# it here just for a default.
 SAVED_STDOUT = sys.stdout
 SAVED_STDERR = sys.stderr
