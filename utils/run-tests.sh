@@ -6,6 +6,7 @@ SOURCES=" \
     src/cement2.ext.json \
     src/cement2.ext.yaml \
     src/cement2.ext.genshi \
+    src/cement2.ext.bitly \
     src/cement2.ext.memcached"
 
 pip install nose coverage
